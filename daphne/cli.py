@@ -236,10 +236,10 @@ class CommandLineInterface:
             access_log_stream = sys.stdout
 
         # Import callback module
-        try:
+        callback_module = None
+        if args.callback_module is not None:
+            # Let any ModuleNotFound error be raised
             callback_module = import_module(args.callback_module)
-        except ModuleNotFoundError:
-            callback_module = None
 
         application_path = args.application
         # Run when_init() if method found in callback module
