@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 import sys
 from argparse import ArgumentError, Namespace
 from importlib import import_module
@@ -165,7 +166,11 @@ class CommandLineInterface:
             "--callback-module",
             dest="callback_module",
             help="Specify a module to be loaded and executed during certain stages of initialisation",
-            # NOTE: Only "when_ready()" is used
+        )
+        self.parser.add_argument(
+            "--chdir",
+            dest="chdir",
+            help="Specify a directory to change working directory to, eg 'django-site' to run `cd django-site`",
         )
 
         self.server = None
@@ -235,10 +240,13 @@ class CommandLineInterface:
         elif args.verbosity >= 1:
             access_log_stream = sys.stdout
 
+        # change directory, if one is provided
+        # (default directory on Heroku is /app/, but we want to run within /app/django-root/)
+        if args.chdir:
+            os.chdir(args.chdir)
+
         # Import callback module
         callback_module = None
-        import os
-        print(os.getcwd())
         if args.callback_module is not None:
             # Let any ModuleNotFound error be raised
             callback_module = import_module(args.callback_module)
