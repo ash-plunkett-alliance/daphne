@@ -161,16 +161,6 @@ class CommandLineInterface:
         self.parser.add_argument(
             "--no-server-name", dest="server_name", action="store_const", const=""
         )
-        self.parser.add_argument(
-            "--callbacks-module",
-            dest="callbacks_module",
-            help="Specify a module containing a 'daphne_callbacks' file to be loaded and executed during certain stages of initialisation",
-        )
-        self.parser.add_argument(
-            "--chdir",
-            dest="chdir",
-            help="Specify a directory to change working directory to, eg 'django-site' to run `cd django-site`",
-        )
 
         self.server = None
 
@@ -239,44 +229,13 @@ class CommandLineInterface:
         elif args.verbosity >= 1:
             access_log_stream = sys.stdout
 
-        # change directory, if one is provided
-        # (default directory on Heroku is /app/, but we want to run within /app/django-root/)
-        if args.chdir:
-            print(f"Changing directory to {args.chdir}")
-            os.chdir(args.chdir)
-        print(f"Current working directory: {os.getcwd()}")
-
-        # Import callback module
-        callbacks_module = None
-        if args.callbacks_module is not None:
-            # Let any ModuleNotFound error be raised
-            print(f"Looking for module: '{args.callbacks_module}.daphne_callbacks' within {os.getcwd()}")
-            from importlib import import_module
-            try:
-                print("Trying...")
-                callbacks_module = import_module(f".daphne_callbacks", args.callbacks_module)
-            except ModuleNotFoundError:
-                print("Failed...")
-                from django_site import daphne_callbacks
-                callbacks_module = daphne_callbacks
-            print(f"Success! {callbacks_module}")
-        else:
-            print("Not looking for module")
-
-        application_path = args.application
-        # Run when_init() if method found in callback module
-        # Useful to do steps prior to any initialisation happening - eg changing directory, like gunicorn allows
-        # https://github.com/benoitc/gunicorn/blob/master/gunicorn/app/base.py#L84-L87
-        init_callable = getattr(callbacks_module, "when_init", None)
-        if init_callable:
-            print("when_init()")
-            init_callable()
-        else:
-            print("No when_init")
+        # `cd django-root`
+        # (default directory on Heroku is /app/, but we want to run everything within /app/django-root/)
+        os.chdir("django-root")
 
         # Import application
         sys.path.insert(0, ".")
-        application = import_by_path(application_path)
+        application = import_by_path(args.application)
         application = guarantee_single_callable(application)
 
         # Set up port/host bindings
@@ -307,10 +266,11 @@ class CommandLineInterface:
         # Start the server
         logger.info("Starting server at {}".format(", ".join(endpoints)))
 
-        # Grab when_ready() callback, if provided
-        ready_callable = getattr(callbacks_module, "when_ready", None)
-        print("when_ready:")
-        print(str(ready_callable))
+        def ready_callable():
+            # touch app-initialized when server is started
+            # this is so that Heroku acknowledges that the server is up and running
+            # https://github.com/heroku/heroku-buildpack-nginx/blob/main/bin/start-nginx#L41-L53
+            open("/tmp/app-initialized", "w").close()
 
         self.server = self.server_class(
             application=application,
