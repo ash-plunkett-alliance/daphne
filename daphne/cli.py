@@ -163,9 +163,9 @@ class CommandLineInterface:
             "--no-server-name", dest="server_name", action="store_const", const=""
         )
         self.parser.add_argument(
-            "--callback-module",
-            dest="callback_module",
-            help="Specify a module to be loaded and executed during certain stages of initialisation",
+            "--callbacks-module",
+            dest="callbacks_module",
+            help="Specify a module containing a 'daphne_callbacks' file to be loaded and executed during certain stages of initialisation",
         )
         self.parser.add_argument(
             "--chdir",
@@ -248,11 +248,11 @@ class CommandLineInterface:
         print(f"Current working directory: {os.getcwd()}")
 
         # Import callback module
-        callback_module = None
-        if args.callback_module is not None:
+        callbacks_module = None
+        if args.callbacks_module is not None:
             # Let any ModuleNotFound error be raised
-            print(f"Looking for module: {args.callback_module}")
-            callback_module = import_module(args.callback_module)
+            print(f"Looking for module: '{args.callbacks_module}.daphne_callbacks' within {os.getcwd()}")
+            callbacks_module = import_module(f".daphne_callbacks", args.callbacks_module)
         else:
             print("Not looking for module")
 
@@ -260,7 +260,7 @@ class CommandLineInterface:
         # Run when_init() if method found in callback module
         # Useful to do steps prior to any initialisation happening - eg changing directory, like gunicorn allows
         # https://github.com/benoitc/gunicorn/blob/master/gunicorn/app/base.py#L84-L87
-        init_callable = getattr(callback_module, "when_init", None)
+        init_callable = getattr(callbacks_module, "when_init", None)
         if init_callable:
             print("when_init()")
             init_callable()
@@ -301,8 +301,9 @@ class CommandLineInterface:
         logger.info("Starting server at {}".format(", ".join(endpoints)))
 
         # Grab when_ready() callback, if provided
-        ready_callable = getattr(callback_module, "when_ready", None)
-        print(ready_callable)
+        ready_callable = getattr(callbacks_module, "when_ready", None)
+        print("when_ready:")
+        print(str(ready_callable))
 
         self.server = self.server_class(
             application=application,
