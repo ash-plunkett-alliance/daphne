@@ -262,7 +262,10 @@ class CommandLineInterface:
         # https://github.com/benoitc/gunicorn/blob/master/gunicorn/app/base.py#L84-L87
         init_callable = getattr(callback_module, "when_init", None)
         if init_callable:
+            print("when_init()")
             init_callable()
+        else:
+            print("No when_init")
 
         # Import application
         sys.path.insert(0, ".")
@@ -299,6 +302,7 @@ class CommandLineInterface:
 
         # Grab when_ready() callback, if provided
         ready_callable = getattr(callback_module, "when_ready", None)
+        print(ready_callable)
 
         self.server = self.server_class(
             application=application,
