@@ -235,9 +235,23 @@ class CommandLineInterface:
         elif args.verbosity >= 1:
             access_log_stream = sys.stdout
 
+        # Import callback module
+        try:
+            callback_module = import_module(args.callback_module)
+        except ModuleNotFoundError:
+            callback_module = None
+
+        application_path = args.application
+        # Run when_init() if method found in callback module
+        # Useful to do steps prior to any initialisation happening - eg changing directory, like gunicorn allows
+        # https://github.com/benoitc/gunicorn/blob/master/gunicorn/app/base.py#L84-L87
+        init_callable = getattr(callback_module, "when_init", None)
+        if init_callable:
+            init_callable()
+
         # Import application
         sys.path.insert(0, ".")
-        application = import_by_path(args.application)
+        application = import_by_path(application_path)
         application = guarantee_single_callable(application)
 
         # Set up port/host bindings
@@ -268,16 +282,8 @@ class CommandLineInterface:
         # Start the server
         logger.info("Starting server at {}".format(", ".join(endpoints)))
 
-        # Import callback module
-        # NOTE: Only when_ready is used
-        try:
-            callback_module = import_module(args.callback_module)
-        except ModuleNotFoundError:
-            callback_module = None
-
-        ready_callable = None
-        if callback_module:
-            ready_callable = getattr(callback_module, "when_ready", None)
+        # Grab when_ready() callback, if provided
+        ready_callable = getattr(callback_module, "when_ready", None)
 
         self.server = self.server_class(
             application=application,
