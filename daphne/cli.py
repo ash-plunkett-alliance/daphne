@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 from argparse import ArgumentError, Namespace
+from importlib import import_module
 
 from asgiref.compatibility import guarantee_single_callable
 
@@ -160,6 +161,12 @@ class CommandLineInterface:
         self.parser.add_argument(
             "--no-server-name", dest="server_name", action="store_const", const=""
         )
+        self.parser.add_argument(
+            "--callback-module",
+            dest="callback_module",
+            help="Specify a module to be loaded and executed during certain stages of initialisation",
+            # NOTE: Only "when_ready()" is used
+        )
 
         self.server = None
 
@@ -260,6 +267,18 @@ class CommandLineInterface:
         endpoints = sorted(args.socket_strings + endpoints)
         # Start the server
         logger.info("Starting server at {}".format(", ".join(endpoints)))
+
+        # Import callback module
+        # NOTE: Only when_ready is used
+        try:
+            callback_module = import_module(args.callback_module)
+        except ModuleNotFoundError:
+            callback_module = None
+
+        ready_callable = None
+        if callback_module:
+            ready_callable = getattr(callback_module, "when_ready", None)
+
         self.server = self.server_class(
             application=application,
             endpoints=endpoints,
@@ -281,5 +300,6 @@ class CommandLineInterface:
             if args.proxy_headers
             else None,
             server_name=args.server_name,
+            ready_callable=ready_callable,
         )
         self.server.run()
