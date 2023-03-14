@@ -243,13 +243,18 @@ class CommandLineInterface:
         # change directory, if one is provided
         # (default directory on Heroku is /app/, but we want to run within /app/django-root/)
         if args.chdir:
+            print(f"Changing directory to {args.chdir}")
             os.chdir(args.chdir)
+        print(f"Current working directory: {os.getcwd()}")
 
         # Import callback module
         callback_module = None
         if args.callback_module is not None:
             # Let any ModuleNotFound error be raised
+            print(f"Looking for module: {args.callback_module}")
             callback_module = import_module(args.callback_module)
+        else:
+            print("Not looking for module")
 
         application_path = args.application
         # Run when_init() if method found in callback module
