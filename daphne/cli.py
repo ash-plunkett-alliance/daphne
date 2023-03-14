@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 from argparse import ArgumentError, Namespace
-from importlib import import_module
 
 from asgiref.compatibility import guarantee_single_callable
 
@@ -252,7 +251,15 @@ class CommandLineInterface:
         if args.callbacks_module is not None:
             # Let any ModuleNotFound error be raised
             print(f"Looking for module: '{args.callbacks_module}.daphne_callbacks' within {os.getcwd()}")
-            callbacks_module = import_module(f".daphne_callbacks", args.callbacks_module)
+            from importlib import import_module
+            try:
+                print("Trying...")
+                callbacks_module = import_module(f".daphne_callbacks", args.callbacks_module)
+            except ModuleNotFoundError:
+                print("Failed...")
+                from django_site import daphne_callbacks
+                callbacks_module = daphne_callbacks
+            print(f"Success! {callbacks_module}")
         else:
             print("Not looking for module")
 
