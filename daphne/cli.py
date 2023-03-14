@@ -231,7 +231,13 @@ class CommandLineInterface:
 
         # `cd django-root`
         # (default directory on Heroku is /app/, but we want to run everything within /app/django-root/)
-        os.chdir("django-root")
+        desired_working_dir = "/app/django-root"
+        print(f"Desired working dir: {desired_working_dir}")
+        print(f"Current working dir: {os.getcwd()}")
+        os.chdir(desired_working_dir)
+        if desired_working_dir not in sys.path:
+            print(f"Adding desired dir to path")
+            sys.path.insert(0, desired_working_dir)
 
         # Import application
         sys.path.insert(0, ".")
