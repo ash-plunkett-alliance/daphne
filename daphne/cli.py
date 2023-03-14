@@ -237,6 +237,8 @@ class CommandLineInterface:
 
         # Import callback module
         callback_module = None
+        import os
+        print(os.getcwd())
         if args.callback_module is not None:
             # Let any ModuleNotFound error be raised
             callback_module = import_module(args.callback_module)
