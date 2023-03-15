@@ -279,6 +279,7 @@ class CommandLineInterface:
             # touch app-initialized when server is started
             # this is so that Heroku acknowledges that the server is up and running
             # https://github.com/heroku/heroku-buildpack-nginx/blob/main/bin/start-nginx#L41-L53
+            print("Yay daphne is up and running")
             open("/tmp/app-initialized", "w").close()
 
         self.server = self.server_class(
