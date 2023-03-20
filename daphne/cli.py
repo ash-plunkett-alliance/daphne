@@ -229,24 +229,23 @@ class CommandLineInterface:
         elif args.verbosity >= 1:
             access_log_stream = sys.stdout
 
-        # `cd django-root`
-        # (default directory on Heroku is /app/, but we want to run everything within /app/django-root/)
+        # ----- Custom fork code start -----
+        # default directory on Heroku is /app/, but we want to import the application from within /app/django-root/
         original_working_dir = os.getcwd()
-        print(f"cwd: {original_working_dir}")
-        desired_working_dir = "/app/django-root"
-        print(f"Desired working dir: {desired_working_dir}")
-        os.chdir(desired_working_dir)
-        if desired_working_dir not in sys.path:
-            print(f"Adding desired dir to path")
-            sys.path.insert(0, desired_working_dir)
+        os.chdir("django-root")
+        sys.path.insert(0, os.getcwd())
+        # ----- Custom fork code end -----
 
         # Import application
-        # sys.path.insert(0, ".")
+        # sys.path.insert(0, ".")  # Custom fork: commented out this line, moved to below
         application = import_by_path(args.application)
         application = guarantee_single_callable(application)
 
+        # ----- Custom fork code start -----
+        # Change back out of django-root so that everything else runs as daphne expects
         os.chdir(original_working_dir)
         sys.path.insert(0, ".")
+        # ----- Custom fork code end -----
 
         # Set up port/host bindings
         if not any(
@@ -276,12 +275,15 @@ class CommandLineInterface:
         # Start the server
         logger.info("Starting server at {}".format(", ".join(endpoints)))
 
+        # ----- Custom fork code start -----
+        # Daphne allows you to pass in ready_callable - but doesn't actually expose it for you to define!
+        # So this is yet another piece we need in our custom fork.
         def ready_callable():
             # touch app-initialized when server is started
             # this is so that Heroku acknowledges that the server is up and running
             # https://github.com/heroku/heroku-buildpack-nginx/blob/main/bin/start-nginx#L41-L53
-            print("Yay daphne is up and running")
             open("/tmp/app-initialized", "w").close()
+        # ----- Custom fork code end -----
 
         self.server = self.server_class(
             application=application,
@@ -304,6 +306,6 @@ class CommandLineInterface:
             if args.proxy_headers
             else None,
             server_name=args.server_name,
-            ready_callable=ready_callable,
+            ready_callable=ready_callable,  # Custom fork: make sure we pass ready_callable through
         )
         self.server.run()
